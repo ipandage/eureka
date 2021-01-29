@@ -42,6 +42,7 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
         this.config = config;
     }
 
+    // InstanceInfo 代表 eureka-server 服务实例本身信息
     @Override
     public synchronized InstanceInfo get() {
         if (instanceInfo == null) {
@@ -81,6 +82,7 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
                 defaultAddress = config.getIpAddress();
             }
 
+            // 构造器模式
             builder.setNamespace(config.getNamespace())
                     .setInstanceId(instanceId)
                     .setAppName(config.getAppname())
