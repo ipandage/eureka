@@ -112,9 +112,12 @@ public class ResponseCacheImpl implements ResponseCache {
                 }
             });
 
+    // 只读缓存
     private final ConcurrentMap<Key, Value> readOnlyCacheMap = new ConcurrentHashMap<Key, Value>();
 
+    // 读写缓存
     private final LoadingCache<Key, Value> readWriteCacheMap;
+
     private final boolean shouldUseReadOnlyResponseCache;
     private final AbstractInstanceRegistry registry;
     private final EurekaServerConfig serverConfig;
@@ -126,9 +129,11 @@ public class ResponseCacheImpl implements ResponseCache {
         this.shouldUseReadOnlyResponseCache = serverConfig.shouldUseReadOnlyResponseCache();
         this.registry = registry;
 
+        // 默认30s
         long responseCacheUpdateIntervalMs = serverConfig.getResponseCacheUpdateIntervalMs();
         this.readWriteCacheMap =
                 CacheBuilder.newBuilder().initialCapacity(1000)
+                        // 自动过期时间 默认180s
                         .expireAfterWrite(serverConfig.getResponseCacheAutoExpirationInSeconds(), TimeUnit.SECONDS)
                         .removalListener(new RemovalListener<Key, Value>() {
                             @Override
@@ -140,6 +145,7 @@ public class ResponseCacheImpl implements ResponseCache {
                                 }
                             }
                         })
+                        // 在缓存不存在时通过CacheLoader的实现自动加载缓存
                         .build(new CacheLoader<Key, Value>() {
                             @Override
                             public Value load(Key key) throws Exception {
@@ -180,6 +186,7 @@ public class ResponseCacheImpl implements ResponseCache {
                         CurrentRequestVersion.set(key.getVersion());
                         Value cacheValue = readWriteCacheMap.get(key);
                         Value currentCacheValue = readOnlyCacheMap.get(key);
+                        // 对比两个缓存的值，读写缓存覆盖只读缓存
                         if (cacheValue != currentCacheValue) {
                             readOnlyCacheMap.put(key, cacheValue);
                         }
@@ -204,6 +211,7 @@ public class ResponseCacheImpl implements ResponseCache {
      * @return payload which contains information about the applications.
      */
     public String get(final Key key) {
+        // shouldUseReadOnlyResponseCache 默认 true
         return get(key, shouldUseReadOnlyResponseCache);
     }
 
@@ -345,10 +353,12 @@ public class ResponseCacheImpl implements ResponseCache {
         Value payload = null;
         try {
             if (useReadOnlyCache) {
+                // 从只读缓存获取注册信息
                 final Value currentPayload = readOnlyCacheMap.get(key);
                 if (currentPayload != null) {
                     payload = currentPayload;
                 } else {
+                    // 只读缓存中不存在，在读写缓存中获取注册信息
                     payload = readWriteCacheMap.get(key);
                     readOnlyCacheMap.put(key, payload);
                 }
@@ -365,6 +375,7 @@ public class ResponseCacheImpl implements ResponseCache {
      * Generate pay load with both JSON and XML formats for all applications.
      */
     private String getPayLoad(Key key, Applications apps) {
+        // 序列化
         EncoderWrapper encoderWrapper = serverCodecs.getEncoder(key.getType(), key.getEurekaAccept());
         String result;
         try {
@@ -413,6 +424,7 @@ public class ResponseCacheImpl implements ResponseCache {
                             payload = getPayLoad(key, registry.getApplicationsFromMultipleRegions(key.getRegions()));
                         } else {
                             tracer = serializeAllAppsTimer.start();
+                            // 注册表中获取 applications
                             payload = getPayLoad(key, registry.getApplications());
                         }
                     } else if (ALL_APPS_DELTA.equals(key.getName())) {

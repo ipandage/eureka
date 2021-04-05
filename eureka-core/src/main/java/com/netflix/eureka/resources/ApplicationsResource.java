@@ -130,10 +130,12 @@ public class ApplicationsResource {
         // Check if the server allows the access to the registry. The server can
         // restrict access if it is not
         // ready to serve traffic depending on various reasons.
+        // 判断是否可以访问
         if (!registry.shouldAllowAccess(isRemoteRegionRequested)) {
             return Response.status(Status.FORBIDDEN).build();
         }
         CurrentRequestVersion.set(Version.toEnum(version));
+        // 返回数据格式
         KeyType keyType = Key.KeyType.JSON;
         String returnMediaType = MediaType.APPLICATION_JSON;
         if (acceptHeader == null || !acceptHeader.contains(HEADER_JSON_VALUE)) {
@@ -147,6 +149,7 @@ public class ApplicationsResource {
         );
 
         Response response;
+        // 根据cacheKey返回注册信息
         if (acceptEncoding != null && acceptEncoding.contains(HEADER_GZIP_VALUE)) {
             response = Response.ok(responseCache.getGZIP(cacheKey))
                     .header(HEADER_CONTENT_ENCODING, HEADER_GZIP_VALUE)
